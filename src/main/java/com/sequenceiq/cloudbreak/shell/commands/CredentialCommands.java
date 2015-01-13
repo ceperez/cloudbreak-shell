@@ -203,6 +203,47 @@ public class CredentialCommands implements CommandMarker {
         }
     }
 
+
+    @CliCommand(value = "credential createOpenStack", help = "Create a new OpenStack credential")
+    public String createOpenstackCredential(
+            @CliOption(key = "description", mandatory = true, help = "Description of the credential") String description,
+            @CliOption(key = "name", mandatory = true, help = "Name of the credential") String name,
+            @CliOption(key = "password", mandatory = true, help = "password of the credential") String password,
+            @CliOption(key = "tenantName", mandatory = true, help = "tenant name") String tenantName,
+            @CliOption(key = "endpoint", mandatory = true, help = "the endpoint URL of the identity service of Openstack") String endpoint,
+            @CliOption(key = "sshKeyPath", mandatory = false, help = "path of a public SSH key file") String sshKeyPath,
+            @CliOption(key = "sshKeyUrl", mandatory = false, help = "URL of a public SSH key file") String sshKeyUrl,
+            @CliOption(key = "publicInAccount", mandatory = false, help = "flags if the credential is public in the account") Boolean publicInAccount
+    ) {
+        if ((sshKeyPath == null || sshKeyPath.isEmpty()) && (sshKeyUrl == null || sshKeyUrl.isEmpty())) {
+            return "An SSH public key must be specified either with --sshKeyPath or --sshKeyUrl";
+        }
+        String sshKey;
+        if (sshKeyPath != null) {
+            try {
+                sshKey = new String(Files.readAllBytes(Paths.get(sshKeyPath))).replaceAll("\n", "");
+            } catch (IOException e) {
+                return "File not found with ssh key.";
+            }
+        } else {
+            try {
+                sshKey = readUrl(sshKeyUrl);
+            } catch (IOException e) {
+                return "Url not found with ssh key.";
+            }
+        }
+        try {
+            String id = cloudbreak.postOpenStackCredential(name, description, password, tenantName, endpoint, sshKey, publicInAccount);
+            context.setCredential(id);
+            createOrSelectTemplateHint();
+            return "Credential created, id: " + id;
+        } catch (HttpResponseException ex) {
+            return ex.getResponse().getData().toString();
+        } catch (Exception ex) {
+            return ex.toString();
+        }
+    }
+
     @CliAvailabilityIndicator(value = "credential createAZURE")
     public boolean isCredentialAzureCreateCommandAvailable() {
         return true;
